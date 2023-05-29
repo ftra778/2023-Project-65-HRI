@@ -444,7 +444,7 @@ else:
     N = n
 
 for j in range(1, N):
-    t = timestamps[(j + 1) * s - s]
+    t = timestamps[int((j + 1) * s - s)]
     T.append(t)
 if len(timestamps) % s != 0:
     T.append(T[-1] + T[0])
@@ -453,7 +453,7 @@ if len(timestamps) % s != 0:
 def ShortenData(AngleHuman, AngleRobot):
     for i in range(len(AngleRobot)):
         for j in range(1, N):
-            theta = AngleHuman[i][(j + 1) * s - s]
+            theta = AngleHuman[i][int((j + 1) * s - s)]
             AngleRobot[i].append(theta)
         if len(timestamps) % s != 0:
             AngleRobot[i].append(AngleHuman[i][-1])
