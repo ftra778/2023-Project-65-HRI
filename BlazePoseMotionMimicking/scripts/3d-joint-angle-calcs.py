@@ -5,7 +5,7 @@ import numpy as np
 import math
 from datetime import datetime
 
-video_path = "../videos/zumba-short.mp4"
+video_path = "../videos/zumba.mp4"
 
 # MediaPipe Pose
 mp_drawing = mp.solutions.drawing_utils
@@ -433,7 +433,7 @@ AngleRobot = [LSP, RSP, REY, LEY, LSR, LER, RSR, RER, HY, HP, HPR, HPP]
 
 # Shorten the timestamps by a scaling factor s
 # s is preferable to be between 10 and 15
-s = 12
+s = 4
 for i in range(len(TimeStamp)):
     s = (num * i) + num
     timestamps.append(s)

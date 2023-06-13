@@ -469,7 +469,7 @@ while cap.isOpened():
     #         'LElbowYaw': LEY, 'RElbowYaw': REY, 'HipRoll': HPR, 'HipPitch': HPP}
 
     ThetaR = pd.DataFrame.from_dict([angles])
-    ThetaR.to_csv(r"D:\Uni\700\PoseTests\joint-angles.csv", index=False)
+    ThetaR.to_csv(r"joint-angles2.csv", index=False)
 
 
 

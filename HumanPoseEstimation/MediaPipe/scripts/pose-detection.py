@@ -24,7 +24,8 @@ with mp_pose.Pose(
     print(
         f'Nose coordinates: ('
         f'{results.pose_landmarks.landmark[mp_pose.PoseLandmark.NOSE].x * image_width}, '
-        f'{results.pose_landmarks.landmark[mp_pose.PoseLandmark.NOSE].y * image_height})'
+        f'{results.pose_landmarks.landmark[mp_pose.PoseLandmark.NOSE].y * image_height}, '
+        f'{results.pose_landmarks.landmark[mp_pose.PoseLandmark.NOSE].z})'
     )
 
     annotated_image = image.copy()
