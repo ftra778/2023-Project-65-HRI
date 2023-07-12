@@ -19,18 +19,11 @@ pose = mp_pose.Pose(
     min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 if webcam_cap == 0:
-    cap = cv2.VideoCapture(r"D:\Uni\700\PoseTests\fast_arms.mp4")
+    #cap = cv2.VideoCapture(r"D:\Uni\700\PoseTests\fast_arms.mp4")
+    cap = cv2.VideoCapture(r"C:\Users\caley\OneDrive\Documents\P4P Human Robot Interaction\2023-Project-65-HRI\BlazePoseMotionMimicking\videos\this-way.mp4")
 else:
     cap = cv2.VideoCapture(0) # 0 for web camera input
 run_time_sec = 200.0
-
-
-
-
-
-
-
-
 
 TimeStamp = [] # Time stamps list in real-time
 
@@ -64,6 +57,9 @@ while (cap.isOpened() and (curr_time - start_time < run_time_sec)):
     res, image = cap.read()
 
     if (time_elapsed > 1./frame_rate) or (webcam_cap):
+
+        if type(image) == type(None):
+            break
 
         # Convert the BGR image to RGB.
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -459,11 +455,11 @@ while (cap.isOpened() and (curr_time - start_time < run_time_sec)):
             # ThetaR.to_csv(savepath, index=False)
             curr_time = time.time()
 
-with open(r'D:\Uni\700\PoseTests\JointEval\input-joints.csv', 'w', newline='') as f:
+# D:\Uni\700\PoseTests\JointEval\input-joints.csv
+with open(r'C:\Users\caley\OneDrive\Documents\P4P Human Robot Interaction\2023-Project-65-HRI\BlazePoseMotionMimicking\scripts\this-way.csv', 'w', newline='') as f:
         w = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for i in AngleHuman:
             w.writerow(i)
-
 
 
 
