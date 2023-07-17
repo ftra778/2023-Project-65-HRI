@@ -20,18 +20,15 @@ pose = mp_pose.Pose(
     min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 if webcam_cap == 0:
-    cap = cv2.VideoCapture(r"D:\Uni\700\PoseTests\videos\hi-five.mp4")
+    #cap = cv2.VideoCapture(r"D:\Uni\700\PoseTests\videos\hi-five.mp4")
+    cap = cv2.VideoCapture(r"C:\Users\caley\OneDrive\Documents\P4P Human Robot Interaction\2023-Project-65-HRI\BlazePoseMotionMimicking\videos\this-way.mp4")
 else:
     cap = cv2.VideoCapture(0) # 0 for web camera input
 run_time_sec = 200.0
 
 
-save_loc = r"D:\Uni\700\PoseTests\JointEval\input-joints.csv"
-
-
-
-
-
+#save_loc = r"D:\Uni\700\PoseTests\JointEval\input-joints.csv"
+save_loc = r"C:\Users\caley\OneDrive\Documents\P4P Human Robot Interaction\2023-Project-65-HRI\BlazePoseMotionMimicking\csv\input-joints.csv"
 
 TimeStamp = [] # Time stamps list in real-time
 

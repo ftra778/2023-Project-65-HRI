@@ -3,23 +3,47 @@ import mediapipe as mp
 import pandas as pd
 import numpy as np
 import math
-from datetime import datetime
 import time
+import csv
+
+
 
 # MediaPipe Pose
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
+webcam_cap = 0
+sample_size = 1
+
 # Input the video
 pose = mp_pose.Pose(
     min_detection_confidence=0.5, min_tracking_confidence=0.5)
-cap = cv2.VideoCapture(r"../videos/WIN_20230711_11_43_32_Pro.mp4.mp4") # 0 for web camera input
-# cap = cv2.VideoCapture(0) # 0 for web camera input
+
+if webcam_cap == 0:
+    #cap = cv2.VideoCapture(r"D:\Uni\700\PoseTests\videos\hi-five.mp4")
+    cap = cv2.VideoCapture(r"C:\Users\caley\OneDrive\Documents\P4P Human Robot Interaction\2023-Project-65-HRI\BlazePoseMotionMimicking\videos\this-way.mp4")
+else:
+    cap = cv2.VideoCapture(0) # 0 for web camera input
+run_time_sec = 200.0
+
+
+#save_loc = r"D:\Uni\700\PoseTests\JointEval\input-joints.csv"
+save_loc = r"C:\Users\caley\OneDrive\Documents\P4P Human Robot Interaction\2023-Project-65-HRI\BlazePoseMotionMimicking\csv\input-joints.csv"
 
 TimeStamp = [] # Time stamps list in real-time
 
-stepthrough = 0
-cap_fail = 0
+# STATIC VARS
+sample = 1                      # Integer tracks amount of samples taken
+init_step = True                # Boolean tracks if frame is the initial frame for base joint coordinates
+cap_fail = False                # Boolean set true if essential joints aren't initially present
+curr_iter = 0                   # Integer tracks current frame
+curr_sample = 0                 # Integer tracks curret sample (EXCLUSIVELY FOR AVERAGING)
+frame_rate = 120                 # Integer sets framerate of video playback for cv2 GUI
+prev = 0                        # 
+
+# Times for analysis
+start_time = time.time()
+curr_time = time.time()
 
 # Arms landmarks
 landmark1 = 'LeftShoulder'
@@ -31,10 +55,27 @@ landmark6 = 'RightHip'
 landmark7 = 'RightElbow'
 landmark8 = 'RightWrist'
 
+#AngleHuman = [['LShoulderRoll', 'LElbowRoll', 'RShoulderRoll', 'RElbowRoll', 'HeadYaw', 'HeadPitch', 'LShoulderPitch', 'RShoulderPitch', 'LElbowYaw', 'RElbowYaw', 'HipRoll', 'HipPitch']]
+AngleHuman = []
+
+# Averaged angles to be exported to Pepper
+filteredAngles = [['LShoulderRoll', 'LElbowRoll', 'RShoulderRoll', 'RElbowRoll', 'HeadYaw', 'HeadPitch', 'LShoulderPitch', 'RShoulderPitch', 'LElbowYaw', 'RElbowYaw', 'HipRoll', 'HipPitch']]
+
+
 # Loop for each frame
-while cap.isOpened():
+while (cap.isOpened() and (curr_time - start_time < run_time_sec)):
     success, image = cap.read()
     if not success:
+        break
+
+    
+    
+    time_elapsed = time.time() - prev
+    res, image = cap.read()
+
+    #if (time_elapsed > 1./frame_rate) or (webcam_cap):
+
+    if type(image) == type(None):
         break
 
     # Convert the BGR image to RGB.
@@ -55,11 +96,12 @@ while cap.isOpened():
         break
 
     # Get the current time
-    time = datetime.now()
-    TimeStamp.append(time)
+    #time = datetime.now()
+    #TimeStamp.append(time)
 
     # Get the pose coordinates of each landmark
     image_height, image_width, _ = image.shape # Normalize the reference frame according to the resolution of the video.
+
 
     # Get the left shoulder coordinates
     try:
@@ -68,7 +110,7 @@ while cap.isOpened():
     except AttributeError:
         X11 = 0
         Y11 = 0
-        cap_fail = 1
+        cap_fail = True
 
     # Get the right shoulder coordinates
     try:
@@ -77,7 +119,7 @@ while cap.isOpened():
     except AttributeError:
         X12 = 0
         Y12 = 0
-        cap_fail = 1
+        cap_fail = True
 
     # Get the left elbow coordinates
     try:
@@ -86,7 +128,7 @@ while cap.isOpened():
     except AttributeError:
         X13 = 0
         Y13 = 0
-        cap_fail = 1
+        cap_fail = True
 
     # Get the right elbow coordinates
     try:
@@ -95,7 +137,7 @@ while cap.isOpened():
     except AttributeError:
         X14 = 0
         Y14 = 0
-        cap_fail = 1
+        cap_fail = True
 
     # Get the left wrist coordinates
     try:
@@ -104,7 +146,7 @@ while cap.isOpened():
     except AttributeError:
         X15 = 0
         Y15 = 0
-        cap_fail = 1
+        cap_fail = True
 
     # Get the right wrist coordinates
     try:
@@ -113,7 +155,7 @@ while cap.isOpened():
     except AttributeError:
         X16 = 0
         Y16 = 0
-        cap_fail = 1
+        cap_fail = True
 
     # Get the left hip coordinates
     try:
@@ -122,7 +164,7 @@ while cap.isOpened():
     except AttributeError:
         X23 = 0
         Y23 = 0
-        cap_fail = 1
+        cap_fail = True
 
     # Get the right hip coordinates
     try:
@@ -132,7 +174,7 @@ while cap.isOpened():
     except AttributeError:
         X24 = 0
         Y24 = 0
-        cap_fail = 1
+        cap_fail = True
 
     # Get the nose coordinates
     try:
@@ -141,10 +183,11 @@ while cap.isOpened():
     except AttributeError:
         X0 = 0
         Y0 = 0
-        cap_fail = 1
+        cap_fail = True
 
-    if cap_fail == 1:
-        cap_fail = 0
+    # If any essentail keypoints have failed to be identified, try again
+    if cap_fail == True:
+        cap_fail = False
     else:
 
 
@@ -167,17 +210,29 @@ while cap.isOpened():
 
         RS_LS = xy[landmark1] - xy[landmark5]  # Right Shoulder to Left Shoulder
         
-        # Original Lengths of arm segments
-        if stepthrough == 0:
+        if init_step is True:
             l1_left = np.linalg.norm(LE_LS[:])  # Upper left arm
             l2_left = np.linalg.norm(LW_LE[:])  # Lower left arm
 
             l1_right = np.linalg.norm(RE_RS[:])  # Upper right arm
             l2_right = np.linalg.norm(RW_RE[:])  # Lower right arm
 
+            shoulders = np.linalg.norm(RS_LS[:])   # Shouler original width
             torso = Y24 - Y12   # Torso original height
             hpa = Y12 - Y0      # Head original angle
         
+        # Function limits the distance a joint can travel between adjacent frames
+        def moveLimiter(new, curr, degree):
+            if abs(new - curr) > degree:
+                if (new > curr):
+                    curr = curr + degree
+                else:
+                    curr = curr - degree
+            else:
+                curr = new
+            return curr
+
+
         # Using Taylor's algorithm to calculate the depth between two orthographic projected points
         # Calculate depth between left shoulder and left elbow
         dz = (l1_left ** 2) - (((X11 - X13) ** 2) + ((Y11 - Y13) ** 2))
@@ -219,20 +274,24 @@ while cap.isOpened():
             phi = phi * -1
         if phi <= -0.5149:    # Maximum left hip roll is -29.5°.
             phi = -0.5149
-        HipRoll = phi
+        HipRoll = -(phi)
 
         # Calculate the hip pitch angles
         adj = (Y24 - Y12) / torso  # Current height of torso over the original height
         if adj >= 1:                   # Keeping the ratio less than or equal to 1
             adj = 1
         phi = np.arccos(adj)           # Hip pitch angle for leaning forward is negative
+        if np.linalg.norm(RS_LS[:]) - shoulders > 0:    # If the shoulders are closer to the camera, it indicates a lean forward, and vice versa NEW
+            phi = phi * (-2)
         if phi >= 1.0385:              # Maximum hip pitch angle is 59.5°.
             phi = 1.0385
+        elif phi <= -1.0385:
+            phi = -1.0385
+
         HipPitch = phi
 
         # Calculate the head yaw angles
         d = np.linalg.norm(RS_LS[:]) / 2  # Half of initial distance between right and left shoulder
-
 
         if (X0 - X12) / d >= 0.9 and (X0 - X12) / d <= 1.1:  # Estimating the angle to be 0° if the nose
             hy = 0.0                                                   # X coordinate doesn't exceed 10% from each side
@@ -246,7 +305,14 @@ while cap.isOpened():
             hy = (((X0 - X12) - d) / d) * (np.pi / 2)             # the nose is approaching the left shoulder.
             if hy >= np.pi / 2:                                        # Maximum head yaw angle to the left is 90°.
                 hy = np.pi / 2
-        HeadYaw = hy
+        HeadYaw = ((hy + 0.067) - (HipRoll * 2.8))               # Offset by 0.067 seems to make head yaw more accurate
+
+        # Prevent head yaw from moving when hip rolls too far
+        # if HipRoll > 0.05 or HipRoll < -0.05:
+        #     HeadYaw = 0.0
+        # if HipRoll > 0:
+
+
 
         # Calculate the head pitch angles
         h = Y12 - Y0
@@ -290,12 +356,12 @@ while cap.isOpened():
         UpperArmLeft[0, 1] = 0
         UpperArmRight[0, 1] = 0
 
-        if stepthrough == 0:
+        if init_step is True:
             LS_LE_3D_init = LS_LE_3D
             RS_RE_3D_init = RS_RE_3D
             ZeroXLeft_init = ZeroXLeft
             ZeroXRight_init = ZeroXRight
-            stepthrough = stepthrough + 1
+            # init_step = False
 
 
 
@@ -305,8 +371,10 @@ while cap.isOpened():
         if temp >= 1.56:
             temp = 1.56
         if temp <= np.arccos((np.dot(LS_LE_3D_init[0, :], ZeroXLeft_init[0, :])) / (np.linalg.norm(LS_LE_3D_init[0, :]) * np.linalg.norm(ZeroXLeft_init[0, :]))):
-            temp = 0.0
+            temp = 0.01
         LShoulderRoll = temp
+
+
 
         # Calculate the right shoulder roll angles
         temp1 = (np.dot(RS_RE_3D[0, :], ZeroXRight[0, :])) / (np.linalg.norm(RS_RE_3D[0, :]) * np.linalg.norm(ZeroXRight[0, :]))
@@ -316,8 +384,14 @@ while cap.isOpened():
         else:
             temp = temp * (-1)
         if temp > -np.arccos((np.dot(RS_RE_3D_init[0, :], ZeroXRight_init[0, :])) / (np.linalg.norm(RS_RE_3D_init[0, :]) * np.linalg.norm(ZeroXRight_init[0, :]))):
-            temp = 0.0
+            temp = 0.01
         RShoulderRoll = temp
+
+        # Prevent shoulders from rolling when hip rolls 
+        if (HipRoll > 0):
+            RShoulderRoll = (RShoulderRoll + HipRoll)
+        else:
+            LShoulderRoll = (LShoulderRoll + HipRoll)
 
         # Calculate the left elbow roll angles
         temp1 = (np.dot(LE_LS_3D[0, :], LW_LE_3D[0, :])) / (np.linalg.norm(LE_LS_3D[0, :]) * np.linalg.norm(LW_LE_3D[0, :]))
@@ -373,6 +447,7 @@ while cap.isOpened():
             rey = 0.0
         RElbowYaw = rey
 
+
         T = []
         LSP = []
         RSP = []
@@ -387,32 +462,44 @@ while cap.isOpened():
         HPP = []
         HPR = []
 
-        def SafePosition(T, AngleRobot):
-            T.append(T[-1] + 2)  # 2 seconds to reach the safe initial position
-
-            for i in range(4, len(AngleRobot)):
-                AngleRobot[i].append(0.0)
-
-            for i in range(3):
-                AngleRobot[i].append(np.pi / 2)
-
-            AngleRobot[3].append(-np.pi / 2)
+        AngleHuman.append([LShoulderRoll, LElbowRoll, RShoulderRoll, RElbowRoll, HeadYaw, HeadPitch, LShoulderPitch, RShoulderPitch, LElbowYaw, RElbowYaw, HipRoll, HipPitch])
 
 
-        # SafePosition(T, AngleRobot)
-        AngleHuman = [LShoulderPitch, RShoulderPitch, RElbowYaw, LElbowYaw, LShoulderRoll, LElbowRoll,
-                    RShoulderRoll, RElbowRoll, HeadYaw, HeadPitch, HipRoll, HipPitch]
-        # Export data to input to Pepper
-        angles = {'LShoulderRoll': LShoulderRoll, 'LElbowRoll': LElbowRoll,
-                'RShoulderRoll': RShoulderRoll, 'RElbowRoll': RElbowRoll, 'HeadYaw': HeadYaw,
-                'HeadPitch': HeadPitch, 'LShoulderPitch': LShoulderPitch, 'RShoulderPitch': RShoulderPitch,
-                'LElbowYaw': LElbowYaw, 'RElbowYaw': RElbowYaw, 'HipRoll': HipRoll, 'HipPitch': HipPitch}
+        curr_sample = curr_sample + 1
+        curr_iter = curr_iter + 1
+        curr_time = time.time()
 
-        ThetaR = pd.DataFrame.from_dict([angles])
-        # ThetaR.to_csv(r"D:\Uni\700\PoseTests\joint-angles.csv", index=False)
-        ThetaR.to_csv(r"joint-angles2.csv", index=False)
+        if curr_sample >= sample_size:
+            curr_sample = 0
+            for i in range(0, sample_size):
+                #print(AngleHuman)
+                LSR.append(AngleHuman[i][0])
+                LER.append(AngleHuman[i][1])
+                RSR.append(AngleHuman[i][2])
+                RER.append(AngleHuman[i][3])
+                HY.append(AngleHuman[i][4])
+                HP.append(AngleHuman[i][5])
+                LSP.append(AngleHuman[i][6])
+                RSP.append(AngleHuman[i][7])
+                LEY.append(AngleHuman[i][8])
+                REY.append(AngleHuman[i][9])
+                HPR.append(AngleHuman[i][10])
+                HPP.append(AngleHuman[i][11])
+                    
+            filteredAngles.append([np.mean(LSR), np.mean(LER), np.mean(RSR), np.mean(RER), 
+                                   np.mean(HY), np.mean(HP), 
+                                   np.mean(LSP), np.mean(RSP), np.mean(LEY), np.mean(REY), 
+                                   np.mean(HPR), np.mean(HPP)])
+            
+            AngleHuman = []
 
+        if init_step is True:
+            init_step = False
 
+with open(save_loc, 'w', newline='') as f:
+        w = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        for i in filteredAngles:
+            w.writerow(i)
 
 
 
