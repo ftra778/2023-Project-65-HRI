@@ -12,6 +12,8 @@ import csv
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
+name_of_save = r'celebrate'
+
 webcam_cap = 0
 sample_size = 1
 
@@ -20,15 +22,22 @@ pose = mp_pose.Pose(
     min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 if webcam_cap == 0:
-    #cap = cv2.VideoCapture(r"D:\Uni\700\PoseTests\videos\hi-five.mp4")
-    cap = cv2.VideoCapture(r"C:\Users\caley\OneDrive\Documents\P4P Human Robot Interaction\2023-Project-65-HRI\BlazePoseMotionMimicking\videos\this-way.mp4")
+    cap = cv2.VideoCapture(r"D:\Uni\700\PoseTests\videos\\" + name_of_save + r".mp4")
 else:
     cap = cv2.VideoCapture(0) # 0 for web camera input
+success = cap.set(cv2.CAP_PROP_FPS, 2)
 run_time_sec = 200.0
 
+print(success)
+print(cap.get(cv2.CAP_PROP_FPS))
 
-#save_loc = r"D:\Uni\700\PoseTests\JointEval\input-joints.csv"
-save_loc = r"C:\Users\caley\OneDrive\Documents\P4P Human Robot Interaction\2023-Project-65-HRI\BlazePoseMotionMimicking\csv\input-joints.csv"
+# save_loc = r"D:\Uni\700\PoseTests\JointEval\input-joints.csv"
+save_loc = r"D:\Uni\700\PoseTests\videos\\" + name_of_save + r".csv"
+
+
+
+
+
 
 TimeStamp = [] # Time stamps list in real-time
 
@@ -37,8 +46,8 @@ sample = 1                      # Integer tracks amount of samples taken
 init_step = True                # Boolean tracks if frame is the initial frame for base joint coordinates
 cap_fail = False                # Boolean set true if essential joints aren't initially present
 curr_iter = 0                   # Integer tracks current frame
-curr_sample = 0                 # Integer tracks curret sample (EXCLUSIVELY FOR AVERAGING)
-frame_rate = 120                 # Integer sets framerate of video playback for cv2 GUI
+curr_sample = 0                 # Integer tracks current sample (EXCLUSIVELY FOR AVERAGING)
+frame_rate = 120                # Integer sets framerate of video playback for cv2 GUI
 prev = 0                        # 
 
 # Times for analysis
@@ -59,11 +68,11 @@ landmark8 = 'RightWrist'
 AngleHuman = []
 
 # Averaged angles to be exported to Pepper
-filteredAngles = [['LShoulderRoll', 'LElbowRoll', 'RShoulderRoll', 'RElbowRoll', 'HeadYaw', 'HeadPitch', 'LShoulderPitch', 'RShoulderPitch', 'LElbowYaw', 'RElbowYaw', 'HipRoll', 'HipPitch']]
+filteredAngles = [['Time', 'LShoulderRoll', 'LElbowRoll', 'RShoulderRoll', 'RElbowRoll', 'HeadYaw', 'HeadPitch', 'LShoulderPitch', 'RShoulderPitch', 'LElbowYaw', 'RElbowYaw', 'HipRoll', 'HipPitch']]
 
 
 # Loop for each frame
-while (cap.isOpened() and (curr_time - start_time < run_time_sec)):
+while (cap.isOpened()) : # and (curr_time - start_time < run_time_sec))
     success, image = cap.read()
     if not success:
         break
@@ -282,7 +291,7 @@ while (cap.isOpened() and (curr_time - start_time < run_time_sec)):
             adj = 1
         phi = np.arccos(adj)           # Hip pitch angle for leaning forward is negative
         if np.linalg.norm(RS_LS[:]) - shoulders > 0:    # If the shoulders are closer to the camera, it indicates a lean forward, and vice versa NEW
-            phi = phi * (-2)
+            phi = phi * (-2.5)
         if phi >= 1.0385:              # Maximum hip pitch angle is 59.5°.
             phi = 1.0385
         elif phi <= -1.0385:
@@ -462,34 +471,38 @@ while (cap.isOpened() and (curr_time - start_time < run_time_sec)):
         HPP = []
         HPR = []
 
-        AngleHuman.append([LShoulderRoll, LElbowRoll, RShoulderRoll, RElbowRoll, HeadYaw, HeadPitch, LShoulderPitch, RShoulderPitch, LElbowYaw, RElbowYaw, HipRoll, HipPitch])
+        curr_time = time.time()
+
+        AngleHuman.append([(curr_time - start_time), LShoulderRoll, LElbowRoll, RShoulderRoll, RElbowRoll, HeadYaw, HeadPitch, LShoulderPitch, RShoulderPitch, LElbowYaw, RElbowYaw, HipRoll, HipPitch])
 
 
         curr_sample = curr_sample + 1
         curr_iter = curr_iter + 1
-        curr_time = time.time()
+        # curr_time = time.time()
 
         if curr_sample >= sample_size:
             curr_sample = 0
             for i in range(0, sample_size):
                 #print(AngleHuman)
-                LSR.append(AngleHuman[i][0])
-                LER.append(AngleHuman[i][1])
-                RSR.append(AngleHuman[i][2])
-                RER.append(AngleHuman[i][3])
-                HY.append(AngleHuman[i][4])
-                HP.append(AngleHuman[i][5])
-                LSP.append(AngleHuman[i][6])
-                RSP.append(AngleHuman[i][7])
-                LEY.append(AngleHuman[i][8])
-                REY.append(AngleHuman[i][9])
-                HPR.append(AngleHuman[i][10])
-                HPP.append(AngleHuman[i][11])
+                T.append(AngleHuman[i][0])
+                LSR.append(AngleHuman[i][1])
+                LER.append(AngleHuman[i][2])
+                RSR.append(AngleHuman[i][3])
+                RER.append(AngleHuman[i][4])
+                HY.append(AngleHuman[i][5])
+                HP.append(AngleHuman[i][6])
+                LSP.append(AngleHuman[i][7])
+                RSP.append(AngleHuman[i][8])
+                LEY.append(AngleHuman[i][9])
+                REY.append(AngleHuman[i][10])
+                HPR.append(AngleHuman[i][11])
+                HPP.append(AngleHuman[i][12])
                     
-            filteredAngles.append([np.mean(LSR), np.mean(LER), np.mean(RSR), np.mean(RER), 
-                                   np.mean(HY), np.mean(HP), 
-                                   np.mean(LSP), np.mean(RSP), np.mean(LEY), np.mean(REY), 
-                                   np.mean(HPR), np.mean(HPP)])
+            filteredAngles.append([ T[sample_size-1],
+                                    np.mean(LSR), np.mean(LER), np.mean(RSR), np.mean(RER), 
+                                    np.mean(HY), np.mean(HP), 
+                                    np.mean(LSP), np.mean(RSP), np.mean(LEY), np.mean(REY), 
+                                    np.mean(HPR), np.mean(HPP)])
             
             AngleHuman = []
 
