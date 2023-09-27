@@ -7,18 +7,27 @@ import time
 import csv
 
 
-
 # MediaPipe Pose
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
-name_of_save = r'high-five-receive'
+name_of_save = r'hold-on'
 first_pass = True
 webcam_cap = 0
 sample_rate = 2
 upper = 0.25
 lower = 0.05
-cv2delay = 1
+cv2delay = 100
+
+blf_en = True
+# k = 3
+# sigma_t = 0.5
+# sigma_g = 1.5
+epsilon = 1e-6
+weights = [1, 5, 18]
+
+# For mapping 3D coordinates
+out_3d = [[['LeftShoulder'], ['RightShoulder'], ['LeftElbow'], ['RightElbow'], ['LeftWrist'], ['RightWrist'], ['LeftHip'], ['RightHip']]]
 
 # Input the video
 pose = mp_pose.Pose(
@@ -233,17 +242,6 @@ while (cap.isOpened()) : # and (curr_time - start_time < run_time_sec))
             shoulders = np.linalg.norm(RS_LS[:])   # Shouler original width
             torso = Y24 - Y12   # Torso original height
             hpa = Y12 - Y0      # Head original angle
-        
-        # Function limits the distance a joint can travel between adjacent frames
-        # def moveLimiter(new, curr, degree):
-        #     if abs(new - curr) > degree:
-        #         if (new > curr):
-        #             curr = curr + degree
-        #         else:
-        #             curr = curr - degree
-        #     else:
-        #         curr = new
-        #     return curr
 
 
         # Using Taylor's algorithm to calculate the depth between two orthographic projected points
@@ -274,6 +272,11 @@ while (cap.isOpened()) : # and (curr_time - start_time < run_time_sec))
         dz2_right = math.sqrt(dz)
         Z6 = dz2_right + Z4
 
+        # Save 3D angles for graphs [Shoulder & Hip coordinates are anchored in the Z axis]
+        out_3d.append([ [X11, X12, X13, X14, X15, X16, X23, X24], 
+                        [Y11, Y12, Y13, Y14, Y15, Y16, Y23, Y24], 
+                        [0, 0, Z3, Z4, Z5, Z6, 0, 0]
+                        ])
 
         # Calculate the hip roll angles
         # Current horizontal distance between the 2 shoulders over the distance between them
@@ -319,12 +322,6 @@ while (cap.isOpened()) : # and (curr_time - start_time < run_time_sec))
             if hy >= np.pi / 2:                                        # Maximum head yaw angle to the left is 90°.
                 hy = np.pi / 2
         HeadYaw = ((hy + 0.067) - (HipRoll * 2.8))               # Offset by 0.067 seems to make head yaw more accurate
-
-        # Prevent head yaw from moving when hip rolls too far
-        # if HipRoll > 0.05 or HipRoll < -0.05:
-        #     HeadYaw = 0.0
-        # if HipRoll > 0:
-
 
 
         # Calculate the head pitch angles
@@ -477,72 +474,241 @@ while (cap.isOpened()) : # and (curr_time - start_time < run_time_sec))
 
         curr_time = time.time()
 
-        # if first_pass is True:
-        #     first_pass = False
         AngleHuman.append([(curr_time - start_time), LShoulderRoll, LElbowRoll, RShoulderRoll, RElbowRoll, HeadYaw, HeadPitch, LShoulderPitch, RShoulderPitch, LElbowYaw, RElbowYaw, HipRoll, HipPitch])
-        # else:
-        #     AngleHuman.append([(curr_time - start_time), 
-        #                        moveLimiter(LShoulderRoll,   prevAngle[1], upper, lower), 
-        #                        moveLimiter(LElbowRoll,      prevAngle[2], upper, lower), 
-        #                        moveLimiter(RShoulderRoll,   prevAngle[3], upper, lower), 
-        #                        moveLimiter(RElbowRoll,      prevAngle[4], upper, lower), 
-        #                        moveLimiter(HeadYaw,         prevAngle[5], upper, lower), 
-        #                        moveLimiter(HeadPitch,       prevAngle[6], upper, lower), 
-        #                        moveLimiter(LShoulderPitch,  prevAngle[7], upper, lower), 
-        #                        moveLimiter(RShoulderPitch,  prevAngle[8], upper, lower), 
-        #                        moveLimiter(LElbowYaw,       prevAngle[9], upper, lower), 
-        #                        moveLimiter(RElbowYaw,       prevAngle[10], upper, lower), 
-        #                        moveLimiter(HipRoll,         prevAngle[11], upper, lower), 
-        #                        moveLimiter(HipPitch,        prevAngle[12], upper, lower)])
 
-        curr_sample = curr_sample + 1
-        curr_iter = curr_iter + 1
-        prevAngle = AngleHuman[AngleHuman.__len__() - 1]
-
-        if curr_sample >= sample_rate:
-            curr_sample = 0
-            for i in range(0, sample_rate):
-                #print(AngleHuman)
-                T.append(AngleHuman[i][0])
-                LSR.append(AngleHuman[i][1])
-                LER.append(AngleHuman[i][2])
-                RSR.append(AngleHuman[i][3])
-                RER.append(AngleHuman[i][4])
-                HY.append(AngleHuman[i][5])
-                HP.append(AngleHuman[i][6])
-                LSP.append(AngleHuman[i][7])
-                RSP.append(AngleHuman[i][8])
-                LEY.append(AngleHuman[i][9])
-                REY.append(AngleHuman[i][10])
-                HPR.append(AngleHuman[i][11])
-                HPP.append(AngleHuman[i][12])
-                    
-            # filteredAngles.append([ T[sample_rate-1], # Most recent time step
-            #                         np.mean(LSR), np.mean(LER), np.mean(RSR), np.mean(RER), 
-            #                         np.mean(HY), np.mean(HP), 
-            #                         np.mean(LSP), np.mean(RSP), np.mean(LEY), np.mean(REY), 
-            #                         np.mean(HPR), np.mean(HPP)])
-
-            filteredAngles.append([ T[0], # Most recent time step
-                        LSR[sample_rate-1], LER[sample_rate-1], RSR[sample_rate-1], RER[sample_rate-1], 
-                        HY[sample_rate-1], HP[sample_rate-1], 
-                        LSP[sample_rate-1], RSP[sample_rate-1], LEY[sample_rate-1], REY[sample_rate-1], 
-                        HPR[sample_rate-1], HPP[sample_rate-1]])
-            
-            AngleHuman = []
 
         if init_step is True:
             init_step = False
 
-print(filteredAngles)
+motion_settings = {
+                    'beckon': ['upper', [1, 2, 4]],
+                    'big-wave': ['arms', [1, 2, 4]],
+                    'bow' : ['hips', [1, 2, 4]],
+                    'celebrate' : ['arms', [1, 2, 4]],
+                    'head-shake' : ['head', [1, 2, 4]],
+                    'high-five-give' : ['arms', [1, 2, 4]],
+                    'high-five-receive' : ['arms', [1, 2, 4]],
+                    'shrug' : ['arms', [1, 2, 4]],
+                    'wave' : ['arms', [1, 2, 4]],
+                    'beckonr': ['upper', [1, 2, 4]],
+                    'big-waver': ['arms', [1, 2, 4]],
+                    'bowr' : ['hips', [1, 2, 4]],
+                    'celebrater' : ['arms', [1, 2, 4]],
+                    'head-shaker' : ['head', [1, 2, 4]],
+                    'high-five-giver' : ['arms', [1, 2, 4]],
+                    'high-five-receiver' : ['arms', [1, 2, 4]],
+                    'shrugr' : ['arms', [1, 2, 4]],
+                    'waver' : ['arms', [1, 2, 4]],
+                    'test' : ['arms', [1, 2, 4]]
+                   }
+
+# Joint information: {'name': [Max Speed, Lowest Angle Value, Highest Angle Value]}
+joint_information = {
+                    'LShoulderRoll': [9.0, 0.0085, 1.56],
+                    'LElbowRoll': [9.0, -1.56, -0.0085],
+                    'RShoulderRoll': [9.0, -1.56, -0.0085],
+                    'RElbowRoll': [9.0, 0.0085, 1.56],
+                    'HeadYaw': [7.0, -2.06, 2.06],
+                    'HeadPitch': [9.0, -0.704, 0.443],
+                    'LShoulderPitch': [7.0, -2.083, 2.083],
+                    'RShoulderPitch': [7.0, -2.083, 2.083],
+                    'LElbowYaw': [7.0, -2.083, 2.083],
+                    'RElbowYaw': [7.0,-2.083, 2.083],
+                    'HipRoll': [2.0, -0.512, 0.512],
+                    'HipPitch': [2.5, -0.101, 0.101]
+                    }
+
+
+# Bilateral Rotational Filter
+def compute_w(T):
+    n = len(T)
+    w = [0] * n
+    for i in range(n - 1):
+        if abs(T[i]) < epsilon:
+            w[i] = math.log(abs(T[i + 1]) + epsilon)
+        else:
+            w[i] = math.log(abs(T[i] ** -1 * T[i + 1]) + epsilon)
+    return w
+
+def normalize(m_values):
+    return [m / sum(m_values) for m in m_values]
+
+def euclidean_distance(n, m):
+    return abs(n-m)
+
+def blf(T,k,sigma_t,sigma_g):
+    n = len(T)
+    k_range = range(-k, k + 1)
+
+    w_values = compute_w(T)
+    T_bar = [0] * n
+
+    for i in range(n):
+        m_values = [0] * len(k_range)
+        b_values = [0] * len(k_range)
+
+        for j, r in enumerate(k_range):
+            spacial_difference = math.exp(-abs(r) / (2 * sigma_t ** 2))
+            intensity_difference = math.exp(-euclidean_distance(i, i + r) / (2 * sigma_g ** 2))
+            m_values[j] = spacial_difference * intensity_difference
+        m_values = normalize(m_values)
+        
+        for j, r in enumerate(k_range):
+            if -k <= r < 0:
+                b_values[j] = sum(m_values[j] for j in range(-k, r))
+            elif 0 <= r < k:
+                b_values[j] = sum(m_values[j] for j in range(r + 1, k + 1))
+
+        T_bar[i] = T[i] * math.exp(sum(b * w for b, w in zip(b_values, w_values[i - k: i + k + 1])))
+
+    return T_bar
+
+# Weighted Moving Average filter
+def wma(data, weights=None):
+    if weights is None:
+        weights = list(range(1, 3))
+    
+    temp_data = [0 for _ in range(data.__len__() - (weights.__len__() - 1))]
+    divisor = 0
+
+    for i in range(0, weights.__len__()):
+        divisor = divisor + weights[i]
+
+    for i in range(weights.__len__() - 1, data.__len__()):
+        quotient = 0
+        for j in range(i-(weights.__len__()-1), i+1):
+            quotient = quotient + (data[j] * weights[j + (weights.__len__()-1)-i])
+        temp_data[i - weights.__len__()+1] = quotient/divisor
+        
+    data[weights.__len__()-1:] = temp_data
+    
+    return data
 
 with open(save_loc, 'w', newline='') as f:
         w = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        for i in filteredAngles:
+        w.writerow(filteredAngles[0])
+        for i in AngleHuman:
             w.writerow(i)
 
 
+# if blf_en is True:
+#     AngleHumanBLF = np.array(AngleHuman).T
+#     AngleHumanWMA = np.array(AngleHuman).T
+#     AngleHumanWMABLF = np.array(AngleHuman).T
+#     AngleHumanblfWMA = np.array(AngleHuman).T
 
+#     for j in range(len(AngleHumanBLF)):
+#         AngleHumanBLF[j]     = blf(AngleHumanBLF[j])
+#         AngleHumanWMA[j]     = wma(AngleHumanWMA[j], weights)
+#         AngleHumanWMABLF[j]  = wma(blf(AngleHumanWMA[j]), weights)
+#         AngleHumanblfWMA[j]  = blf(wma(AngleHumanWMA[j], weights))
+    
+#     AngleHumanBLF = np.ndarray.tolist(AngleHumanBLF.T)
+#     AngleHumanWMA = np.ndarray.tolist(AngleHumanWMA.T)
+#     AngleHumanWMAblf = np.ndarray.tolist(AngleHumanWMABLF.T)
+#     AngleHumanblfWMA = np.ndarray.tolist(AngleHumanblfWMA.T)
+
+if blf_en is True:
+    AngleHumanK3T05G15 = np.array(AngleHuman).T
+    AngleHumanK3T10G15 = np.array(AngleHuman).T
+    AngleHumanK3T15G15 = np.array(AngleHuman).T
+    AngleHumanK3T10G05 = np.array(AngleHuman).T
+    AngleHumanK3T10G10 = np.array(AngleHuman).T
+    AngleHuman123 = np.array(AngleHuman).T
+    AngleHuman1312 = np.array(AngleHuman).T
+    AngleHuman1518 = np.array(AngleHuman).T
+    AngleHumanK3T05G151518 = np.array(AngleHuman).T
+    AngleHumanK3T15G151518 = np.array(AngleHuman).T
+    AngleHumanK3T15G101518 = np.array(AngleHuman).T
+
+    for j in range(len(AngleHumanK3T05G15)):
+        AngleHumanK3T05G15[j]       = blf(AngleHumanK3T05G15[j],3,0.5,1.5)
+        AngleHumanK3T10G15[j]       = blf(AngleHumanK3T10G15[j],3,1.0,1.5)
+        AngleHumanK3T15G15[j]       = blf(AngleHumanK3T15G15[j],3,1.5,1.5)
+        AngleHumanK3T10G05[j]       = blf(AngleHumanK3T10G05[j],3,1.0,0.5)
+        AngleHumanK3T10G10[j]       = blf(AngleHumanK3T10G10[j],3,1.0,1.0)
+        AngleHuman123[j]           = wma(AngleHuman123[j], [1,2,3])
+        AngleHuman1312[j]           = wma(AngleHuman1312[j], [1,3,12])
+        AngleHuman1518[j]           = wma(AngleHuman1518[j], [1,5,18])
+        AngleHumanK3T05G151518[j]   = wma(blf(AngleHumanK3T05G151518[j],3,0.5,1.5), [1,5,18])
+        AngleHumanK3T15G151518[j]   = wma(blf(AngleHumanK3T15G151518[j],3,1.5,1.5), [1,5,18])
+        AngleHumanK3T15G101518[j]   = wma(blf(AngleHumanK3T15G101518[j],3,1.5,1.0), [1,5,18])
+    
+    AngleHumanK3T05G15 = np.ndarray.tolist(AngleHumanK3T05G15.T)
+    AngleHumanK3T10G15 = np.ndarray.tolist(AngleHumanK3T10G15.T)
+    AngleHumanK3T15G15 = np.ndarray.tolist(AngleHumanK3T15G15.T)
+    AngleHumanK3T10G05 = np.ndarray.tolist(AngleHumanK3T10G05.T)
+    AngleHumanK3T10G10 = np.ndarray.tolist(AngleHumanK3T10G10.T)
+    AngleHuman123 = np.ndarray.tolist(AngleHuman123.T)
+    AngleHuman1312 = np.ndarray.tolist(AngleHuman1312.T)
+    AngleHuman1518 = np.ndarray.tolist(AngleHuman1518.T)
+    AngleHumanK3T05G151518 = np.ndarray.tolist(AngleHumanK3T05G151518.T)
+    AngleHumanK3T15G151518 = np.ndarray.tolist(AngleHumanK3T15G151518.T)
+    AngleHumanK3T15G101518 = np.ndarray.tolist(AngleHumanK3T15G101518.T)
+
+
+
+with open(r"/afs/ec.auckland.ac.nz/users/f/t/ftra778/unixhome/Documents/videos/CSVOut/" + name_of_save + r".csv", 'w', newline='') as f:
+    w = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+    for i in AngleHuman:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHumanK3T05G15:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHumanK3T10G15:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHumanK3T15G15:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHumanK3T10G05:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHumanK3T10G10:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHuman123:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHuman1312:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHuman1518:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHumanK3T05G151518:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHumanK3T15G151518:
+        w.writerow(i)
+    w.writerow('')
+    for i in AngleHumanK3T15G101518:
+        w.writerow(i)
+x = []
+y = []
+z = []
+with open(r"/afs/ec.auckland.ac.nz/users/f/t/ftra778/unixhome/Documents/videos/CSVOut/" + name_of_save + r"_coordinates.csv", 'w', newline='') as f:
+    w = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    for i in range(len(out_3d[0])):
+        w.writerow(out_3d[0][i])
+        x = ['x']
+        y = ['y']
+        z = ['z']
+        for j in range(len(out_3d)-1):
+            x.append(out_3d[j+1][0][i])
+            y.append(out_3d[j+1][1][i])
+            z.append(out_3d[j+1][2][i])
+        w.writerow(x)
+        w.writerow(y)
+        w.writerow(z)
+        x[1:] = blf(wma(x[1:], weights),3,1.0,1.5)
+        y[1:] = blf(wma(y[1:], weights),3,1.0,1.5)
+        z[1:] = blf(wma(z[1:], weights),3,1.0,1.5)
+        w.writerow(x)
+        w.writerow(y)
+        w.writerow(z)
 
 
 

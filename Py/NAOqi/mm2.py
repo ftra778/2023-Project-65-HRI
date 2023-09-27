@@ -12,7 +12,7 @@ import numpy as np
 
 ## USER PARAMETERS
 # Name of file to read and save outputs to
-name_of_save = r"high-five-receive"
+name_of_save = r"gaze"
 
 # Bilateral Filter Parameters
 epsilon = 1e-6          # Value close to zero to avoid special cases with math functions
@@ -22,7 +22,7 @@ sigma_g = 1.5           # Value similarity influence (Higher value = other value
 useblf = True           # Enable use of filter to robot movements
 
 # Weighted Moving Average Parameters
-weights = [1, 2, 4]     # Weights to apply to data
+weights = [1, 5, 18]     # Weights to apply to data
 usewma = True           # Enable use of filter to robot movements
 
 # Track faces for motions that don't require the head
@@ -30,27 +30,34 @@ targetName = "Face"
 faceWidth = 0.2
 
 # Settings for motions: {'Name' : ['Body Area', 'WMA Weights']}
-useWholeBody = False
+useWholeBody = True
 motion_settings = {
-                    'beckon': ['upper', [1, 2, 4]],
-                    'big-wave': ['arms', [1, 2, 4]],
-                    'bow' : ['hips', [1, 2, 4]],
-                    'celebrate' : ['arms', [1, 2, 4]],
-                    'head-shake' : ['head', [1, 2, 4]],
-                    'high-five-give' : ['arms', [1, 2, 4]],
-                    'high-five-receive' : ['arms', [1, 2, 4]],
-                    'shrug' : ['arms', [1, 2, 4]],
-                    'wave' : ['arms', [1, 2, 4]],
-                    'beckonr': ['upper', [1, 2, 4]],
-                    'big-waver': ['arms', [1, 2, 4]],
-                    'bowr' : ['hips', [1, 2, 4]],
-                    'celebrater' : ['arms', [1, 2, 4]],
-                    'head-shaker' : ['head', [1, 2, 4]],
-                    'high-five-giver' : ['arms', [1, 2, 4]],
-                    'high-five-receiver' : ['arms', [1, 2, 4]],
-                    'shrugr' : ['arms', [1, 2, 4]],
-                    'waver' : ['arms', [1, 2, 4]],
-                    'test' : ['arms', [1, 2, 4]]
+                    'beckon': ['upper', weights],
+                    'beckon1': ['upper', weights],
+                    'beckon2': ['upper', weights],
+                    'big-wave': ['arms', weights],
+                    'bow' : ['hips', weights],
+                    'celebrate' : ['arms', weights],
+                    'gaze' : ['upper', weights],
+                    'head-shake' : ['head', weights],
+                    'high-five-give' : ['arms', weights],
+                    'high-five-receive' : ['arms', weights],
+                    'shrug' : ['arms', weights],
+                    't-pose' : ['upper', weights],
+                    'wave' : ['arms', weights],
+                    'wave1' : ['arms', weights],
+                    'beckonr': ['upper', weights],
+                    'big-waver': ['arms', weights],
+                    'bowr' : ['hips', weights],
+                    'celebrater' : ['arms', weights],
+                    'head-shaker' : ['head', weights],
+                    'high-five-giver' : ['arms', weights],
+                    'high-five-receiver' : ['arms', weights],
+                    'shrugr' : ['arms', weights],
+                    'waver' : ['arms', weights],
+                    'test' : ['arms', weights],
+                    'hold-on' : ['arms', weights],
+                    'demo' : ['upper', weights]
                    }
 
 # Joint information: {'name': [Max Speed, Lowest Angle Value, Highest Angle Value]}
@@ -138,12 +145,12 @@ def wma(data, weights=None):
 # Limit the movement and speed of movements 
 def move_limiter(data, name, time):
     for i in range(len(data[1:])):
-
+        
         # If joint is moving too fast, reassign angles by an acceptable amount
-        if (data[i] - data[i-1])/(time[i] - time[i-1]) > (joint_information[name][0]):
+        if ((data[i] > data[i-1]) and (data[i] - data[i-1])/(time[i] - time[i-1]) > (joint_information[name][0])):
             data[i] = data[i-1] + ((time[i] - time[i-1]) * (joint_information[name][0]))
-        elif (data[i] - data[i-1])/(time[i] - time[i-1]) < -(joint_information[name][0]):
-            data[i] = data[i-1] - ((time[i] - time[i-1]) * -(joint_information[name][0]))
+        elif ((data[i] < data[i-1]) and (data[i] - data[i-1])/(time[i] - time[i-1]) < -(joint_information[name][0])):
+            data[i] = data[i-1] - ((time[i] - time[i-1]) * (joint_information[name][0]))
 
         # If joint is outside of range, reassign to min/max range bounds
         if data[i] < joint_information[name][1]:
@@ -218,7 +225,7 @@ def main(session):
     isAbsolute  = True
 
     # Hand settings based on motion type
-    if name_of_save in ('beckon', 'beckonr', 'big-wave', 'big-waver', 'high-five-give', 'high-five-giver', 'high-five-receive', 'high-five-receiver', 'shrug', 'shrugr', 'wave', 'waver'):
+    if name_of_save in ('hold-on', 'beckon', 'beckonr', 'big-wave', 'big-waver', 'high-five-give', 'high-five-giver', 'high-five-receive', 'high-five-receiver', 'shrug', 'shrugr', 'wave', 'waver'):
         motion_service.openHand('RHand')
         motion_service.openHand('LHand')
     if name_of_save in ('big-wave', 'shrug'):
