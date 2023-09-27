@@ -45,7 +45,7 @@ landmark5 = 'RightShoulder'
 landmark6 = 'RightHip'
 landmark7 = 'RightElbow'
 landmark8 = 'RightWrist'
-
+start_time = time.time()
 # Loop for each frame
 while cap.isOpened():
     success, image = cap.read()
@@ -446,14 +446,13 @@ while cap.isOpened():
             prevAngles = AngleHuman
 
             # Export data to input to Pepper
-            angles = {'LShoulderRoll': LShoulderRoll, 'LElbowRoll': LElbowRoll,
+            angles = {'Time': (time.time() - start_time),'LShoulderRoll': LShoulderRoll, 'LElbowRoll': LElbowRoll,
                     'RShoulderRoll': RShoulderRoll, 'RElbowRoll': RElbowRoll, 'HeadYaw': HeadYaw,
                     'HeadPitch': HeadPitch, 'LShoulderPitch': LShoulderPitch, 'RShoulderPitch': RShoulderPitch,
                     'LElbowYaw': LElbowYaw, 'RElbowYaw': RElbowYaw, 'HipRoll': HipRoll, 'HipPitch': HipPitch}
 
             ThetaR = pd.DataFrame.from_dict([angles])
-            ThetaR.to_csv(r"/afs/ec.auckland.ac.nz/users/f/t/ftra778/unixhome/Documents/videos/joint-angles", index=False)
-
+            ThetaR.to_csv(r"/home/cyin631/Documents/P4P-Human-Robot-Interaction/2023-Project-65-HRI/Excel/joint-angles", index=False)
 
 
 

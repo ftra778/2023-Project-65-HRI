@@ -13,8 +13,10 @@ import numpy as np
 def main(session):
     
     max_rt_s = 20
+    weights = [1,5,18]
     motion_service = session.service("ALMotion")
     posture_service = session.service("ALRobotPosture")
+    first_pass = True
 
     # tts = ALProxy('ALTextToSpeech')
     names =   [
@@ -24,6 +26,67 @@ def main(session):
                         "LShoulderPitch", "RShoulderPitch",
                         "LElbowYaw", "RElbowYaw", "HipRoll", "HipPitch"
                     ]
+    motion_settings = {
+                    'beckon': ['upper', weights],
+                    'beckon1': ['upper', weights],
+                    'beckon2': ['upper', weights],
+                    'big-wave': ['arms', weights],
+                    'bow' : ['hips', weights],
+                    'celebrate' : ['arms', weights],
+                    'gaze' : ['upper', weights],
+                    'head-shake' : ['head', weights],
+                    'high-five-give' : ['arms', weights],
+                    'high-five-receive' : ['arms', weights],
+                    'shrug' : ['arms', weights],
+                    't-pose' : ['upper', weights],
+                    'wave' : ['arms', weights],
+                    'wave1' : ['arms', weights],
+                    'beckonr': ['upper', weights],
+                    'big-waver': ['arms', weights],
+                    'bowr' : ['hips', weights],
+                    'celebrater' : ['arms', weights],
+                    'head-shaker' : ['head', weights],
+                    'high-five-giver' : ['arms', weights],
+                    'high-five-receiver' : ['arms', weights],
+                    'shrugr' : ['arms', weights],
+                    'waver' : ['arms', weights],
+                    'test' : ['arms', weights],
+                    'hold-on' : ['arms', weights],
+                    'demo' : ['upper', weights]
+                   }
+
+    # Joint information: {'name': [Max Speed, Lowest Angle Value, Highest Angle Value]}
+    joint_information = {
+                    'LShoulderRoll': [9.0, 0.0085, 1.56],
+                    'LElbowRoll': [9.0, -1.56, -0.0085],
+                    'RShoulderRoll': [9.0, -1.56, -0.0085],
+                    'RElbowRoll': [9.0, 0.0085, 1.56],
+                    'HeadYaw': [7.0, -2.06, 2.06],
+                    'HeadPitch': [9.0, -0.704, 0.443],
+                    'LShoulderPitch': [7.0, -2.083, 2.083],
+                    'RShoulderPitch': [7.0, -2.083, 2.083],
+                    'LElbowYaw': [7.0, -2.083, 2.083],
+                    'RElbowYaw': [7.0,-2.083, 2.083],
+                    'HipRoll': [2.0, -0.512, 0.512],
+                    'HipPitch': [2.5, -0.101, 0.101]
+                    }
+
+    # Limit the movement and speed of movements 
+    def move_limiter(data, name, time):
+        for i in range(len(data[1:])):
+            
+            # If joint is moving too fast, reassign angles by an acceptable amount
+            if ((data[i] > data[i-1]) and (data[i] - data[i-1])/(time[i] - time[i-1]) > (joint_information[name][0])):
+                data[i] = data[i-1] + ((time[i] - time[i-1]) * (joint_information[name][0]))
+            elif ((data[i] < data[i-1]) and (data[i] - data[i-1])/(time[i] - time[i-1]) < -(joint_information[name][0])):
+                data[i] = data[i-1] - ((time[i] - time[i-1]) * (joint_information[name][0]))
+
+            # If joint is outside of range, reassign to min/max range bounds
+            if data[i] < joint_information[name][1]:
+                data[i] = joint_information[name][1]  
+            if data[i] > joint_information[name][2]:
+                data[i] = joint_information[name][2]
+
     angles = [0.0] * len(names)
     current_angles = [0.0] * len(names)
     timestamps = []
@@ -35,7 +98,7 @@ def main(session):
     while((curr_time - start_time) < max_rt_s):
         i = 0
         curr_time = time.time()
-        with open(r"/afs/ec.auckland.ac.nz/users/f/t/ftra778/unixhome/Documents/videos/joint-angles", mode ='r') as file:
+        with open(r"/home/cyin631/Documents/P4P-Human-Robot-Interaction/2023-Project-65-HRI/Excel/joint-angles", mode ='r') as file:
             #reading the CSV file
             csvFile = csv.reader(file)
 
@@ -46,10 +109,13 @@ def main(session):
                     angles = lines
                 else:
                     i= i + 1
+            if first_pass is False:
+                motion_service.angleInterpolationWithSpeed(names, angles[1:], 0.2)
 
-            motion_service.angleInterpolationWithSpeed(names, angles, 0.7)
-            time.sleep(0.05)
-            current_angles = motion_service.getAngles(names, True)
+                time.sleep(0.05)
+            else:
+                first_pass = False
+            current_angles = angles
             #time.sleep(0.5)
     
     posture_service.goToPosture('StandInit', 0.5)
