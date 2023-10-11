@@ -10,6 +10,31 @@ import time
 import pandas as pd
 import numpy as np
 
+weights = [1,5,18]
+prev_data = []
+curr_data = []
+
+# Weighted Moving Average filter
+def wma(data, weights=None):
+    if weights is None:
+        weights = list(range(1, 3))
+    
+    temp_data = [0 for _ in range(data.__len__() - (weights.__len__() - 1))]
+    divisor = 0
+
+    for i in range(0, weights.__len__()):
+        divisor = divisor + weights[i]
+
+    for i in range(weights.__len__() - 1, data.__len__()):
+        quotient = 0
+        for j in range(i-(weights.__len__()-1), i+1):
+            quotient = quotient + (data[j] * weights[j + (weights.__len__()-1)-i])
+        temp_data[i - weights.__len__()+1] = quotient/divisor
+        
+    data[weights.__len__()-1:] = temp_data
+    
+    return data
+
 def main(session):
     
     max_rt_s = 20
@@ -110,8 +135,19 @@ def main(session):
                 else:
                     i= i + 1
             if first_pass is False:
-                motion_service.angleInterpolationWithSpeed(names, angles[1:], 0.2)
-
+                if len(prev_data) < len(weights):
+                    prev_data.append(angles[1:])
+                    # motion_service.angleInterpolationWithSpeed(names, angles[1:], 0.2)
+                    print(angles[1:])
+                else:
+                    prev_data.append(angles[1:])
+                    prev_data.pop(0)
+                    curr_data = []
+                    # motion_service.angleInterpolationWithSpeed(names, wma(prev_data,weights), 0.2)
+                    # for i in range(len(prev_data)):
+                    #     curr_data.append(wma(prev_data[i],weights))
+                    print(prev_data)
+                    print(angles[1:])
                 time.sleep(0.05)
             else:
                 first_pass = False

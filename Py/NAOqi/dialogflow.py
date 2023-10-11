@@ -1,5 +1,9 @@
 
-import dialogflow
+# import dialogflow
+# from dialogflow import SessionsClient
+# import SessionsClient from dialogflow
+import dialogflow_v2 as dialogflow
+
 
 import qi
 import naoqi
