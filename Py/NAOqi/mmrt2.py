@@ -18,7 +18,7 @@ curr_data = []
 def wma(data, weights=None):
     if weights is None:
         weights = list(range(1, 3))
-    
+    new_data = []
     temp_data = [0 for _ in range(data.__len__() - (weights.__len__() - 1))]
     divisor = 0
 
@@ -31,13 +31,16 @@ def wma(data, weights=None):
             quotient = quotient + (data[j] * weights[j + (weights.__len__()-1)-i])
         temp_data[i - weights.__len__()+1] = quotient/divisor
         
-    data[weights.__len__()-1:] = temp_data
+    # data[weights.__len__()-1:] = temp_data
+
+    # new_data[weights.__len__()-1:] = temp_data
     
-    return data
+    # return data
+    return temp_data
 
 def main(session):
     
-    max_rt_s = 20
+    max_rt_s = 60
     weights = [1,5,18]
     motion_service = session.service("ALMotion")
     posture_service = session.service("ALRobotPosture")
@@ -119,7 +122,7 @@ def main(session):
 
     start_time, curr_time = time.time(), time.time()
     
-
+    xx = 0
     while((curr_time - start_time) < max_rt_s):
         i = 0
         curr_time = time.time()
@@ -137,22 +140,19 @@ def main(session):
             if first_pass is False:
                 if len(prev_data) < len(weights):
                     prev_data.append(angles[1:])
-                    # motion_service.angleInterpolationWithSpeed(names, angles[1:], 0.2)
-                    print(angles[1:])
+                    motion_service.angleInterpolationWithSpeed(names, angles[1:], 0.2)
+  
                 else:
                     prev_data.append(angles[1:])
                     prev_data.pop(0)
                     curr_data = []
-                    # motion_service.angleInterpolationWithSpeed(names, wma(prev_data,weights), 0.2)
-                    # for i in range(len(prev_data)):
-                    #     curr_data.append(wma(prev_data[i],weights))
-                    print(prev_data)
-                    print(angles[1:])
+                    for i in range(len(prev_data[0])):
+                        curr_data.append(wma([prev_data[0][i],prev_data[1][i],prev_data[2][i]],weights)[0])
+                    motion_service.angleInterpolationWithSpeed(names, curr_data, 0.2)
                 time.sleep(0.05)
             else:
                 first_pass = False
             current_angles = angles
-            #time.sleep(0.5)
     
     posture_service.goToPosture('StandInit', 0.5)
     motion_service.setStiffnesses(names, 0.0)
