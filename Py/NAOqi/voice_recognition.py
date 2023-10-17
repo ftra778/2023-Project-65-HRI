@@ -10,11 +10,17 @@ import time
 import pandas as pd
 import numpy as np
 
+def word_recognized(value):
+    if value != []:
+        for i in range( len(value)-1 ):
+            print("word recognized is " + value[0] + " ,confidence is: " + value[1])
+
 def main(session):
     
-    max_rt_s = 20
-    motion_service = session.service("ALMotion")
-    posture_service = session.service("ALRobotPosture")
+    memory = session.service("ALMemory")
+    subscriber = memory.subscriber("WordRecognized")
+    subscriber.signal.connect(word_recognized)
+
     tts = session.service("ALTextToSpeech")
     asr = session.service("ALSpeechRecognition")
 

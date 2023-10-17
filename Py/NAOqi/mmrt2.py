@@ -40,7 +40,7 @@ def wma(data, weights=None):
 
 def main(session):
     
-    max_rt_s = 60
+    max_rt_s = 300
     weights = [1,5,18]
     motion_service = session.service("ALMotion")
     posture_service = session.service("ALRobotPosture")
@@ -140,7 +140,7 @@ def main(session):
             if first_pass is False:
                 if len(prev_data) < len(weights):
                     prev_data.append(angles[1:])
-                    motion_service.angleInterpolationWithSpeed(names, angles[1:], 0.2)
+                    motion_service.angleInterpolationWithSpeed(names, angles[1:], 0.6)
   
                 else:
                     prev_data.append(angles[1:])
@@ -148,7 +148,7 @@ def main(session):
                     curr_data = []
                     for i in range(len(prev_data[0])):
                         curr_data.append(wma([prev_data[0][i],prev_data[1][i],prev_data[2][i]],weights)[0])
-                    motion_service.angleInterpolationWithSpeed(names, curr_data, 0.2)
+                    motion_service.angleInterpolationWithSpeed(names, curr_data, 0.6)
                 time.sleep(0.05)
             else:
                 first_pass = False
